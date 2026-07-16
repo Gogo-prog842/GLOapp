@@ -1,0 +1,3 @@
+Ten projekt buduje APK przez GitHub Actions.
+Nie musisz mieć lokalnie Fluttera ani Android SDK.
+Workflow generuje czysty folder android/ na serwerze GitHuba.
