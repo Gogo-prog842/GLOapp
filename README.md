@@ -1,68 +1,53 @@
-# GLO Mobile — Flutter app
+# GLO Mobile – Flutter
 
-Startowa aplikacja mobilna Grudziądzkiej Ligi Orlikowej przygotowana pod budowanie przez GitHub Actions.
+Natywna aplikacja mobilna Grudziądzkiej Ligi Orlikowej budowana przez GitHub Actions.
 
-## Co jest w środku
+## Build bez Fluttera lokalnie
 
-- Flutter/Dart UI aplikacji GLO
-- Połączenie z Supabase przez publiczny publishable/anon key
-- Ekrany: start, mecze, szczegóły meczu, tabela, zawodnicy, konto
-- Fundament LIVE: zegar 2 × 30 minut, przerwa, doliczony czas, gole i kartki
-- Testy tabeli oraz zegara LIVE
-- Workflow `.github/workflows/build-android.yml`, który buduje APK na serwerze GitHuba
+Ten projekt jest przygotowany pod tryb GitHub-only. Nie musisz trzymać Flutter SDK ani Android SDK na swoim komputerze.
 
-## Ważne
+Po wrzuceniu kodu do repo GitHub Actions:
 
-Ten ZIP jest przygotowany tak, żeby nie trzeba było instalować Fluttera ani Android SDK lokalnie. GitHub Actions tworzy czysty projekt Flutter na runnerze, kopiuje do niego kod GLO i buduje APK.
+1. instaluje Java 17,
+2. konfiguruje Android SDK,
+3. instaluje Flutter stable,
+4. generuje folder Android,
+5. pobiera zależności,
+6. robi `flutter analyze`,
+7. odpala testy,
+8. buduje `app-debug.apk`,
+9. wrzuca APK do `Artifacts`.
 
-## Jak wrzucić na GitHuba
+## V4
 
-W folderze projektu:
+Dodane w tej wersji:
+
+- dynamiczne zakładki zależne od roli,
+- panel admina,
+- panel sędziego LIVE,
+- rozbudowane centrum meczu,
+- szybkie dodawanie wydarzeń osobno dla gospodarzy i gości,
+- ustawianie MVP meczu,
+- podgląd składów obu drużyn,
+- workflow GitHub Actions z Android SDK.
+
+## Wrzucenie na GitHub
 
 ```powershell
 git init
-git add .
-git commit -m "Initial GLO mobile app"
 git branch -M main
 git remote add origin https://github.com/Gogo-prog842/GLOapp.git
-git push -u origin main
+git add -A
+git commit -m "Add GLO mobile v4"
+git push -u origin main --force
 ```
 
-Jeżeli repo już istnieje i ma ustawiony origin:
-
-```powershell
-git add .
-git commit -m "Replace with complete GitHub build project"
-git push
-```
-
-## Jak pobrać APK
-
-Po pushu wejdź:
+APK znajdziesz potem w:
 
 ```text
-GitHub → GLOapp → Actions → Build GLO Android APK → Artifacts → GLO-Android-debug
+GitHub → Actions → Build GLO Android APK → Artifacts → GLO-Android-debug
 ```
 
-W środku będzie plik:
+## Ważne bezpieczeństwo
 
-```text
-app-debug.apk
-```
-
-## Supabase
-
-Konfiguracja jest w:
-
-```text
-lib/core/config/app_config.dart
-```
-
-Do aplikacji można wkładać tylko publiczny `publishable/anon key`. Nie wkładaj `service_role key`.
-
-## V3 mobile changes
-
-- Fixed the player list source so league player counts no longer depend on incomplete `season_players` rows.
-- Added a mobile Transfers screen backed by `player_transfers`.
-- Added a first Captain Panel view available from Account for captain/admin roles.
-- Updated GitHub Actions to set up Android SDK before calling `sdkmanager`.
+Aplikacja używa publicznego `publishable/anon key`. Krytyczne operacje admina muszą być chronione przez Supabase RLS albo Edge Functions. Ukrywanie przycisków w UI nie jest zabezpieczeniem bazy.

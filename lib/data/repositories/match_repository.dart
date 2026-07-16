@@ -245,6 +245,17 @@ class MatchRepository {
     await _client.from('match_cards').delete().eq('id', cardId);
   }
 
+  Future<void> setMvp({
+    required GloMatch match,
+    int? homePlayerId,
+    int? awayPlayerId,
+  }) async {
+    await _client.from('matches').update({
+      'mvp_player_id': homePlayerId,
+      'mvp_away_player_id': awayPlayerId,
+    }).eq('id', match.id);
+  }
+
   static (int?, String?, int?) currentEventMinute(
     GloMatch match, {
     DateTime? now,

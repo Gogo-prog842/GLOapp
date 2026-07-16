@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../features/admin/admin_panel_screen.dart';
 import '../../features/captain/captain_panel_screen.dart';
+import '../../features/referee/referee_panel_screen.dart';
 import '../../data/models/user_role.dart';
 import '../../data/repositories/app_services.dart';
 import '../../state/app_scope.dart';
@@ -117,24 +119,31 @@ class _AccountScreenState extends State<AccountScreen> {
           ),
         ),
 
-        if (role.type == UserRoleType.captain || role.type == UserRoleType.admin) ...[
+        if (role.type == UserRoleType.admin) ...[
           const SizedBox(height: 14),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton.icon(
-              onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder: (_) => Scaffold(
-                      appBar: AppBar(title: const Text('Panel kapitana')),
-                      body: const CaptainPanelScreen(),
-                    ),
-                  ),
-                );
-              },
-              icon: const Icon(Icons.shield_outlined),
-              label: const Text('Otwórz panel kapitana'),
-            ),
+          _PanelButton(
+            title: 'Otwórz panel admina',
+            icon: Icons.admin_panel_settings_outlined,
+            screenTitle: 'Panel admina',
+            screen: const AdminPanelScreen(),
+          ),
+        ],
+        if (role.type == UserRoleType.referee || role.type == UserRoleType.admin) ...[
+          const SizedBox(height: 10),
+          _PanelButton(
+            title: 'Otwórz panel LIVE',
+            icon: Icons.sports_outlined,
+            screenTitle: 'Panel sędziego LIVE',
+            screen: const RefereePanelScreen(),
+          ),
+        ],
+        if (role.type == UserRoleType.captain && role.team != null) ...[
+          const SizedBox(height: 10),
+          _PanelButton(
+            title: 'Otwórz panel kapitana',
+            icon: Icons.shield_outlined,
+            screenTitle: 'Panel kapitana',
+            screen: const CaptainPanelScreen(),
           ),
         ],
         const SizedBox(height: 14),
@@ -178,5 +187,40 @@ class _AccountScreenState extends State<AccountScreen> {
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+}
+
+class _PanelButton extends StatelessWidget {
+  const _PanelButton({
+    required this.title,
+    required this.icon,
+    required this.screenTitle,
+    required this.screen,
+  });
+
+  final String title;
+  final IconData icon;
+  final String screenTitle;
+  final Widget screen;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      child: FilledButton.icon(
+        onPressed: () {
+          Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => Scaffold(
+                appBar: AppBar(title: Text(screenTitle)),
+                body: screen,
+              ),
+            ),
+          );
+        },
+        icon: Icon(icon),
+        label: Text(title),
+      ),
+    );
   }
 }

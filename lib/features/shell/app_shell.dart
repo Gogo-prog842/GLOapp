@@ -2,10 +2,14 @@ import 'package:flutter/material.dart';
 
 import '../../core/config/app_config.dart';
 import '../../core/widgets/common.dart';
+import '../../data/models/user_role.dart';
 import '../../features/account/account_screen.dart';
+import '../../features/admin/admin_panel_screen.dart';
+import '../../features/captain/captain_panel_screen.dart';
 import '../../features/home/home_screen.dart';
 import '../../features/matches/matches_screen.dart';
 import '../../features/players/players_screen.dart';
+import '../../features/referee/referee_panel_screen.dart';
 import '../../features/standings/standings_screen.dart';
 import '../../features/transfers/transfers_screen.dart';
 import '../../state/app_scope.dart';
@@ -20,15 +24,6 @@ class AppShell extends StatefulWidget {
 class _AppShellState extends State<AppShell> {
   var _index = 0;
 
-  static const _screens = [
-    HomeScreen(),
-    MatchesScreen(),
-    StandingsScreen(),
-    PlayersScreen(),
-    TransfersScreen(),
-    AccountScreen(),
-  ];
-
   @override
   Widget build(BuildContext context) {
     final controller = AppScope.of(context);
@@ -40,6 +35,14 @@ class _AppShellState extends State<AppShell> {
       return Scaffold(
         body: GloError(message: controller.error!, onRetry: controller.retry),
       );
+    }
+
+    final items = _destinationsFor(controller.role.type);
+    final safeIndex = _index.clamp(0, items.length - 1).toInt();
+    if (safeIndex != _index) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() => _index = safeIndex);
+      });
     }
 
     return Scaffold(
@@ -66,21 +69,61 @@ class _AppShellState extends State<AppShell> {
       ),
       body: SafeArea(
         top: false,
-        child: IndexedStack(index: _index, children: _screens),
+        child: IndexedStack(
+          index: safeIndex,
+          children: items.map((item) => item.screen).toList(growable: false),
+        ),
       ),
       bottomNavigationBar: NavigationBar(
-        selectedIndex: _index,
+        selectedIndex: safeIndex,
         onDestinationSelected: (value) => setState(() => _index = value),
-        destinations: const [
-          NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home), label: 'Start'),
-          NavigationDestination(icon: Icon(Icons.sports_soccer_outlined), selectedIcon: Icon(Icons.sports_soccer), label: 'Mecze'),
-          NavigationDestination(icon: Icon(Icons.leaderboard_outlined), selectedIcon: Icon(Icons.leaderboard), label: 'Tabela'),
-          NavigationDestination(icon: Icon(Icons.groups_outlined), selectedIcon: Icon(Icons.groups), label: 'Gracze'),
-          NavigationDestination(icon: Icon(Icons.swap_horiz_outlined), selectedIcon: Icon(Icons.swap_horiz), label: 'Transfery'),
-          NavigationDestination(icon: Icon(Icons.person_outline), selectedIcon: Icon(Icons.person), label: 'Konto'),
-        ],
+        destinations: items.map((item) => item.destination).toList(growable: false),
       ),
     );
+  }
+
+  List<_ShellItem> _destinationsFor(UserRoleType role) {
+    return [
+      const _ShellItem(
+        screen: HomeScreen(),
+        destination: NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home), label: 'Start'),
+      ),
+      const _ShellItem(
+        screen: MatchesScreen(),
+        destination: NavigationDestination(icon: Icon(Icons.sports_soccer_outlined), selectedIcon: Icon(Icons.sports_soccer), label: 'Mecze'),
+      ),
+      const _ShellItem(
+        screen: StandingsScreen(),
+        destination: NavigationDestination(icon: Icon(Icons.leaderboard_outlined), selectedIcon: Icon(Icons.leaderboard), label: 'Tabela'),
+      ),
+      const _ShellItem(
+        screen: PlayersScreen(),
+        destination: NavigationDestination(icon: Icon(Icons.groups_outlined), selectedIcon: Icon(Icons.groups), label: 'Gracze'),
+      ),
+      const _ShellItem(
+        screen: TransfersScreen(),
+        destination: NavigationDestination(icon: Icon(Icons.swap_horiz_outlined), selectedIcon: Icon(Icons.swap_horiz), label: 'Transfery'),
+      ),
+      if (role == UserRoleType.referee || role == UserRoleType.admin)
+        const _ShellItem(
+          screen: RefereePanelScreen(),
+          destination: NavigationDestination(icon: Icon(Icons.sports_outlined), selectedIcon: Icon(Icons.sports), label: 'LIVE'),
+        ),
+      if (role == UserRoleType.captain)
+        const _ShellItem(
+          screen: CaptainPanelScreen(),
+          destination: NavigationDestination(icon: Icon(Icons.shield_outlined), selectedIcon: Icon(Icons.shield), label: 'Kapitan'),
+        ),
+      if (role == UserRoleType.admin)
+        const _ShellItem(
+          screen: AdminPanelScreen(),
+          destination: NavigationDestination(icon: Icon(Icons.admin_panel_settings_outlined), selectedIcon: Icon(Icons.admin_panel_settings), label: 'Admin'),
+        ),
+      const _ShellItem(
+        screen: AccountScreen(),
+        destination: NavigationDestination(icon: Icon(Icons.person_outline), selectedIcon: Icon(Icons.person), label: 'Konto'),
+      ),
+    ];
   }
 
   Future<void> _showCompetitionSheet(BuildContext context) async {
@@ -135,4 +178,11 @@ class _AppShellState extends State<AppShell> {
       },
     );
   }
+}
+
+class _ShellItem {
+  const _ShellItem({required this.screen, required this.destination});
+
+  final Widget screen;
+  final NavigationDestination destination;
 }

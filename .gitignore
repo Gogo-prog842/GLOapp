@@ -1,25 +1,14 @@
-# Flutter / Dart
 .dart_tool/
-.flutter-plugins
-.flutter-plugins-dependencies
 .packages
-.pub-cache/
 .pub/
 build/
-
-# Android generated locally, CI creates it cleanly
+.flutter-plugins
+.flutter-plugins-dependencies
 android/
-
-# IDE
-.idea/
-.vscode/
+ios/
+linux/
+macos/
+windows/
+web/
 *.iml
-
-# OS
 .DS_Store
-Thumbs.db
-
-# Secrets
-.env
-*.keystore
-key.properties

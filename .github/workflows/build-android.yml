@@ -12,7 +12,7 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 35
 
     steps:
       - name: Checkout repository
@@ -27,88 +27,36 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
+      - name: Install Android SDK packages
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0"
+
       - name: Set up Flutter stable
         uses: subosito/flutter-action@v2
         with:
           channel: stable
           cache: true
 
-      - name: Install Android SDK packages
-        run: |
-          yes | sdkmanager --licenses >/dev/null || true
-          sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0"
-
-      - name: Create clean Flutter Android project
-        run: |
-          PROJECT_DIR="$RUNNER_TEMP/glo_mobile_build"
-          echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
-          flutter create --platforms=android --org pl.glogdz --project-name glo_mobile "$PROJECT_DIR"
-
-      - name: Copy GLO source into clean project
-        run: |
-          set -e
-          rm -rf "$PROJECT_DIR/lib" "$PROJECT_DIR/test"
-          cp -R lib "$PROJECT_DIR/lib"
-          cp -R test "$PROJECT_DIR/test"
-          cp pubspec.yaml "$PROJECT_DIR/pubspec.yaml"
-          cp analysis_options.yaml "$PROJECT_DIR/analysis_options.yaml"
-          cp README.md "$PROJECT_DIR/README.md"
-          if [ -d docs ]; then cp -R docs "$PROJECT_DIR/docs"; fi
-          if [ -d supabase ]; then cp -R supabase "$PROJECT_DIR/supabase"; fi
-
-      - name: Configure generated Android project
-        working-directory: ${{ env.PROJECT_DIR }}
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-
-          gradle_props = Path('android/gradle.properties')
-          text = gradle_props.read_text() if gradle_props.exists() else ''
-          required = {
-              'android.useAndroidX': 'true',
-              'android.enableJetifier': 'true',
-              'org.gradle.jvmargs': '-Xmx4G -XX:MaxMetaspaceSize=2G -XX:ReservedCodeCacheSize=512m -XX:+HeapDumpOnOutOfMemoryError',
-          }
-          lines = [line for line in text.splitlines() if line.strip()]
-          keys = {line.split('=', 1)[0].strip() for line in lines if '=' in line}
-          for key, value in required.items():
-              if key not in keys:
-                  lines.append(f'{key}={value}')
-          gradle_props.write_text('\n'.join(lines) + '\n')
-
-          manifest = Path('android/app/src/main/AndroidManifest.xml')
-          m = manifest.read_text()
-          if 'android.permission.INTERNET' not in m:
-              m = m.replace(
-                  '<manifest xmlns:android="http://schemas.android.com/apk/res/android">',
-                  '<manifest xmlns:android="http://schemas.android.com/apk/res/android">\n'
-                  '    <uses-permission android:name="android.permission.INTERNET" />\n'
-                  '    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />'
-              )
-          m = m.replace('android:label="glo_mobile"', 'android:label="GLO"')
-          manifest.write_text(m)
-          PY
+      - name: Generate Android platform files
+        run: flutter create --platforms=android --org pl.glogdz --project-name glo_mobile .
 
       - name: Install dependencies
-        working-directory: ${{ env.PROJECT_DIR }}
         run: flutter pub get
 
       - name: Static analysis
-        working-directory: ${{ env.PROJECT_DIR }}
         run: flutter analyze
 
       - name: Run tests
-        working-directory: ${{ env.PROJECT_DIR }}
         run: flutter test
 
       - name: Build debug APK
-        working-directory: ${{ env.PROJECT_DIR }}
         run: flutter build apk --debug
 
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
           name: GLO-Android-debug
-          path: ${{ env.PROJECT_DIR }}/build/app/outputs/flutter-apk/app-debug.apk
+          path: build/app/outputs/flutter-apk/app-debug.apk
           if-no-files-found: error
           retention-days: 14

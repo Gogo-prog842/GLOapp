@@ -147,8 +147,31 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
               onAddTime: () => _runAction(() => _repository.addAddedMinute(match)),
               onFinish: () => _confirmFinish(match),
               onAddEvent: match.isLive ? () => _showAddEventSheet(match) : null,
+              onSetMvp: () => _showMvpSheet(match),
             ),
+            if (match.isLive) ...[
+              const SizedBox(height: 12),
+              _TeamQuickActions(
+                homeTeam: widget.homeTeam,
+                awayTeam: widget.awayTeam,
+                onHomeGoal: () => _showAddEventSheet(match, initialTeamId: match.homeTeamId, initialKind: _DraftKind.goal),
+                onAwayGoal: () => _showAddEventSheet(match, initialTeamId: match.awayTeamId, initialKind: _DraftKind.goal),
+                onHomeYellow: () => _showAddEventSheet(match, initialTeamId: match.homeTeamId, initialKind: _DraftKind.yellowCard),
+                onAwayYellow: () => _showAddEventSheet(match, initialTeamId: match.awayTeamId, initialKind: _DraftKind.yellowCard),
+                onHomeRed: () => _showAddEventSheet(match, initialTeamId: match.homeTeamId, initialKind: _DraftKind.redCard),
+                onAwayRed: () => _showAddEventSheet(match, initialTeamId: match.awayTeamId, initialKind: _DraftKind.redCard),
+              ),
+            ],
           ],
+          const SizedBox(height: 22),
+          const SectionHeader(title: 'Składy'),
+          const SizedBox(height: 12),
+          _LineupsCard(
+            match: match,
+            homeTeam: widget.homeTeam,
+            awayTeam: widget.awayTeam,
+            players: _players.values.toList(growable: false),
+          ),
           const SizedBox(height: 22),
           const SectionHeader(title: 'Wydarzenia'),
           const SizedBox(height: 12),
@@ -248,7 +271,11 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
     if (confirmed == true) await _runAction(() => _repository.finishLiveMatch(match));
   }
 
-  Future<void> _showAddEventSheet(GloMatch match) async {
+  Future<void> _showAddEventSheet(
+    GloMatch match, {
+    int? initialTeamId,
+    _DraftKind initialKind = _DraftKind.goal,
+  }) async {
     final players = _players.values
         .where((player) => player.teamId == match.homeTeamId || player.teamId == match.awayTeamId)
         .toList(growable: false)
@@ -269,6 +296,8 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
         homeTeam: widget.homeTeam,
         awayTeam: widget.awayTeam,
         players: players,
+        initialTeamId: initialTeamId,
+        initialKind: initialKind,
       ),
     );
     if (draft == null) return;
@@ -301,6 +330,38 @@ class _MatchDetailsScreenState extends State<MatchDetailsScreen> {
         await _repository.deleteCard(event.id);
       }
     });
+  }
+
+  Future<void> _showMvpSheet(GloMatch match) async {
+    final players = _players.values
+        .where((player) => player.teamId == match.homeTeamId || player.teamId == match.awayTeamId)
+        .toList(growable: false)
+      ..sort((a, b) => a.name.compareTo(b.name));
+    if (players.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Nie znaleziono zawodników obu drużyn.')),
+      );
+      return;
+    }
+
+    final draft = await showModalBottomSheet<_MvpDraft>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (context) => _MvpSheet(
+        match: match,
+        homeTeam: widget.homeTeam,
+        awayTeam: widget.awayTeam,
+        players: players,
+      ),
+    );
+    if (draft == null) return;
+
+    await _runAction(() => _repository.setMvp(
+          match: match,
+          homePlayerId: draft.homePlayerId,
+          awayPlayerId: draft.awayPlayerId,
+        ));
   }
 
   static int _compareEvents(MatchEvent a, MatchEvent b) {
@@ -406,6 +467,7 @@ class _LiveControls extends StatelessWidget {
     required this.onAddTime,
     required this.onFinish,
     required this.onAddEvent,
+    required this.onSetMvp,
   });
 
   final GloMatch match;
@@ -416,6 +478,7 @@ class _LiveControls extends StatelessWidget {
   final VoidCallback onAddTime;
   final VoidCallback onFinish;
   final VoidCallback? onAddEvent;
+  final VoidCallback onSetMvp;
 
   @override
   Widget build(BuildContext context) {
@@ -442,6 +505,7 @@ class _LiveControls extends StatelessWidget {
                   OutlinedButton.icon(onPressed: busy ? null : onAddTime, icon: const Icon(Icons.add_alarm), label: const Text('+1 min')),
                 if (onAddEvent != null)
                   FilledButton.tonalIcon(onPressed: busy ? null : onAddEvent, icon: const Icon(Icons.add), label: const Text('Gol / kartka')),
+                OutlinedButton.icon(onPressed: busy ? null : onSetMvp, icon: const Icon(Icons.star_outline), label: const Text('MVP')),
                 if (match.isLive && period == 'second_half')
                   FilledButton.icon(
                     style: FilledButton.styleFrom(backgroundColor: GloColors.danger),
@@ -592,6 +656,292 @@ class _InfoRow extends StatelessWidget {
   }
 }
 
+
+class _TeamQuickActions extends StatelessWidget {
+  const _TeamQuickActions({
+    required this.homeTeam,
+    required this.awayTeam,
+    required this.onHomeGoal,
+    required this.onAwayGoal,
+    required this.onHomeYellow,
+    required this.onAwayYellow,
+    required this.onHomeRed,
+    required this.onAwayRed,
+  });
+
+  final Team? homeTeam;
+  final Team? awayTeam;
+  final VoidCallback onHomeGoal;
+  final VoidCallback onAwayGoal;
+  final VoidCallback onHomeYellow;
+  final VoidCallback onAwayYellow;
+  final VoidCallback onHomeRed;
+  final VoidCallback onAwayRed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: _QuickTeamCard(
+            title: homeTeam?.name ?? 'Gospodarze',
+            alignEnd: false,
+            onGoal: onHomeGoal,
+            onYellow: onHomeYellow,
+            onRed: onHomeRed,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _QuickTeamCard(
+            title: awayTeam?.name ?? 'Goście',
+            alignEnd: true,
+            onGoal: onAwayGoal,
+            onYellow: onAwayYellow,
+            onRed: onAwayRed,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _QuickTeamCard extends StatelessWidget {
+  const _QuickTeamCard({
+    required this.title,
+    required this.alignEnd,
+    required this.onGoal,
+    required this.onYellow,
+    required this.onRed,
+  });
+
+  final String title;
+  final bool alignEnd;
+  final VoidCallback onGoal;
+  final VoidCallback onYellow;
+  final VoidCallback onRed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: alignEnd ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              textAlign: alignEnd ? TextAlign.end : TextAlign.start,
+              style: const TextStyle(fontWeight: FontWeight.w900),
+            ),
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: onGoal,
+                icon: const Icon(Icons.sports_soccer),
+                label: const Text('Gol'),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: onYellow,
+                    child: const Text('Żółta'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: onRed,
+                    child: const Text('Czerwona'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _LineupsCard extends StatelessWidget {
+  const _LineupsCard({
+    required this.match,
+    required this.homeTeam,
+    required this.awayTeam,
+    required this.players,
+  });
+
+  final GloMatch match;
+  final Team? homeTeam;
+  final Team? awayTeam;
+  final List<Player> players;
+
+  @override
+  Widget build(BuildContext context) {
+    final homePlayers = players.where((player) => player.teamId == match.homeTeamId).toList(growable: false)
+      ..sort((a, b) => a.name.compareTo(b.name));
+    final awayPlayers = players.where((player) => player.teamId == match.awayTeamId).toList(growable: false)
+      ..sort((a, b) => a.name.compareTo(b.name));
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: _TeamLineupColumn(title: homeTeam?.name ?? 'Gospodarze', players: homePlayers)),
+            const SizedBox(width: 12),
+            Expanded(child: _TeamLineupColumn(title: awayTeam?.name ?? 'Goście', players: awayPlayers, alignEnd: true)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TeamLineupColumn extends StatelessWidget {
+  const _TeamLineupColumn({required this.title, required this.players, this.alignEnd = false});
+
+  final String title;
+  final List<Player> players;
+  final bool alignEnd;
+
+  @override
+  Widget build(BuildContext context) {
+    final preview = players.take(8).toList(growable: false);
+    return Column(
+      crossAxisAlignment: alignEnd ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          textAlign: alignEnd ? TextAlign.end : TextAlign.start,
+          style: const TextStyle(fontWeight: FontWeight.w900),
+        ),
+        const SizedBox(height: 10),
+        if (preview.isEmpty)
+          Text('Brak zawodników', style: Theme.of(context).textTheme.bodySmall)
+        else
+          ...preview.map(
+            (player) => Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Text(
+                player.jerseyNumber == null ? player.name : '#${player.jerseyNumber} ${player.name}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: alignEnd ? TextAlign.end : TextAlign.start,
+              ),
+            ),
+          ),
+        if (players.length > preview.length)
+          Text('+${players.length - preview.length} więcej', style: Theme.of(context).textTheme.bodySmall),
+      ],
+    );
+  }
+}
+
+class _MvpDraft {
+  const _MvpDraft({this.homePlayerId, this.awayPlayerId});
+
+  final int? homePlayerId;
+  final int? awayPlayerId;
+}
+
+class _MvpSheet extends StatefulWidget {
+  const _MvpSheet({
+    required this.match,
+    required this.homeTeam,
+    required this.awayTeam,
+    required this.players,
+  });
+
+  final GloMatch match;
+  final Team? homeTeam;
+  final Team? awayTeam;
+  final List<Player> players;
+
+  @override
+  State<_MvpSheet> createState() => _MvpSheetState();
+}
+
+class _MvpSheetState extends State<_MvpSheet> {
+  int? _homePlayerId;
+  int? _awayPlayerId;
+
+  @override
+  void initState() {
+    super.initState();
+    _homePlayerId = widget.match.mvpPlayerId;
+    _awayPlayerId = widget.match.mvpAwayPlayerId;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final homePlayers = widget.players.where((player) => player.teamId == widget.match.homeTeamId).toList(growable: false)
+      ..sort((a, b) => a.name.compareTo(b.name));
+    final awayPlayers = widget.players.where((player) => player.teamId == widget.match.awayTeamId).toList(growable: false)
+      ..sort((a, b) => a.name.compareTo(b.name));
+    if (_homePlayerId != null && !homePlayers.any((player) => player.id == _homePlayerId)) {
+      _homePlayerId = null;
+    }
+    if (_awayPlayerId != null && !awayPlayers.any((player) => player.id == _awayPlayerId)) {
+      _awayPlayerId = null;
+    }
+
+    return Padding(
+      padding: EdgeInsets.fromLTRB(20, 4, 20, 24 + MediaQuery.viewInsetsOf(context).bottom),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Ustaw MVP meczu', style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 16),
+          DropdownButtonFormField<int?>(
+            initialValue: _homePlayerId,
+            decoration: InputDecoration(labelText: 'MVP ${widget.homeTeam?.name ?? 'gospodarzy'}'),
+            items: [
+              const DropdownMenuItem<int?>(value: null, child: Text('Brak MVP')),
+              ...homePlayers.map((player) => DropdownMenuItem<int?>(value: player.id, child: Text(player.name))),
+            ],
+            onChanged: (value) => setState(() => _homePlayerId = value),
+          ),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<int?>(
+            initialValue: _awayPlayerId,
+            decoration: InputDecoration(labelText: 'MVP ${widget.awayTeam?.name ?? 'gości'}'),
+            items: [
+              const DropdownMenuItem<int?>(value: null, child: Text('Brak MVP')),
+              ...awayPlayers.map((player) => DropdownMenuItem<int?>(value: player.id, child: Text(player.name))),
+            ],
+            onChanged: (value) => setState(() => _awayPlayerId = value),
+          ),
+          const SizedBox(height: 20),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: () => Navigator.pop(
+                context,
+                _MvpDraft(homePlayerId: _homePlayerId, awayPlayerId: _awayPlayerId),
+              ),
+              icon: const Icon(Icons.save),
+              label: const Text('Zapisz MVP'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 enum _DraftKind { goal, yellowCard, redCard }
 
 class _EventDraft {
@@ -616,12 +966,16 @@ class _AddEventSheet extends StatefulWidget {
     required this.homeTeam,
     required this.awayTeam,
     required this.players,
+    required this.initialTeamId,
+    required this.initialKind,
   });
 
   final GloMatch match;
   final Team? homeTeam;
   final Team? awayTeam;
   final List<Player> players;
+  final int? initialTeamId;
+  final _DraftKind initialKind;
 
   @override
   State<_AddEventSheet> createState() => _AddEventSheetState();
@@ -637,7 +991,8 @@ class _AddEventSheetState extends State<_AddEventSheet> {
   @override
   void initState() {
     super.initState();
-    _teamId = widget.match.homeTeamId;
+    _kind = widget.initialKind;
+    _teamId = widget.initialTeamId ?? widget.match.homeTeamId;
   }
 
   List<Player> get _teamPlayers => widget.players.where((player) => player.teamId == _teamId).toList(growable: false);
