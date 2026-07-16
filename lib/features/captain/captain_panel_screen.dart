@@ -35,7 +35,7 @@ class _CaptainPanelScreenState extends State<CaptainPanelScreen> {
       return const _CaptainPanelData();
     }
 
-    final leagueId = team.leagueId ?? controller.selectedLeagueId;
+    final leagueId = team.leagueId;
     final results = await Future.wait<dynamic>([
       services.playerRepository.fetchPlayersForTeam(team.id),
       services.matchRepository.fetchMatches(

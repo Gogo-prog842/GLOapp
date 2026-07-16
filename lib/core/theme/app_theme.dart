@@ -7,7 +7,9 @@ abstract final class GloColors {
   static const border = Color(0x1FFFFFFF);
   static const text = Color(0xFFEEF2FF);
   static const muted = Color(0xFF8292B2);
+  static const textMuted = muted;
   static const leagueOne = Color(0xFF1E6FDB);
+  static const primary = leagueOne;
   static const leagueTwo = Color(0xFF16A34A);
   static const accent = Color(0xFFF97316);
   static const danger = Color(0xFFEF4444);
