@@ -15,7 +15,7 @@ class TransferRepository {
     final response = await _client
         .from('player_transfers')
         .select('''
-          id, player_id, from_team_id, to_team_id, transfer_date, created_at, notes, type, season_id,
+          id, transfer_date, notes, type,
           player:players(id,name,team_id),
           from_team:teams!player_transfers_from_team_id_fkey(id,name,league_id,logo_url),
           to_team:teams!player_transfers_to_team_id_fkey(id,name,league_id,logo_url),

@@ -139,11 +139,17 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
       seasonId: controller.selectedSeasonId,
       teams: teams,
     );
-    final transfers = await services.transferRepository.fetchTransfers(
-      leagueId: controller.selectedLeagueId,
-      seasonId: controller.selectedSeasonId,
-      limit: 80,
-    );
+    final List<TransferRecord> transfers;
+    try {
+      transfers = await services.transferRepository.fetchTransfers(
+        leagueId: controller.selectedLeagueId,
+        seasonId: controller.selectedSeasonId,
+        limit: 80,
+      );
+    } catch (_) {
+      // Transfer history should not block the whole admin dashboard.
+      transfers = const [];
+    }
 
     return _AdminSnapshot(
       teams: teams,
