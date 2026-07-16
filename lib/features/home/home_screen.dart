@@ -58,7 +58,10 @@ class _HomeScreenState extends State<HomeScreen> {
       teams: teams,
       matches: matches,
       players: players,
-      standings: StandingsCalculator.calculate(teams, matches),
+      standings: StandingsCalculator.calculate(
+        teams,
+        matches.where((match) => match.roundNumber != null && match.roundNumber! > 0).toList(growable: false),
+      ),
     );
   }
 
@@ -78,12 +81,20 @@ class _HomeScreenState extends State<HomeScreen> {
         }
         final data = snapshot.requireData;
         final teamMap = {for (final team in data.teams) team.id: team};
-        final live = data.matches.where((match) => match.isLive).toList(growable: false);
-        final upcoming = data.matches
+
+        // Ekran START pokazuje wyłącznie spotkania ligowe przypisane do
+        // konkretnej kolejki. Mecze pucharowe, sparingi i ręcznie dodane
+        // spotkania bez numeru kolejki pozostają dostępne w terminarzu.
+        final roundMatches = data.matches
+            .where((match) => match.roundNumber != null && match.roundNumber! > 0)
+            .toList(growable: false);
+
+        final live = roundMatches.where((match) => match.isLive).toList(growable: false);
+        final upcoming = roundMatches
             .where((match) => match.isScheduled)
             .toList(growable: false)
           ..sort((a, b) => _dateTime(a).compareTo(_dateTime(b)));
-        final recent = data.matches.where((match) => match.isCompleted).toList(growable: false)
+        final recent = roundMatches.where((match) => match.isCompleted).toList(growable: false)
           ..sort((a, b) => _dateTime(b).compareTo(_dateTime(a)));
 
         return RefreshIndicator(
@@ -93,9 +104,9 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               _HeroCard(
                 teamCount: data.teams.length,
-                playerCount: data.players.length,
+                playerCount: data.players.where((player) => player.teamId != null).length,
                 liveCount: live.length,
-                playedCount: data.matches.where((match) => match.isCompleted).length,
+                playedCount: roundMatches.where((match) => match.isCompleted).length,
               ),
               if (live.isNotEmpty) ...[
                 const SizedBox(height: 24),
