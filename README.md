@@ -59,3 +59,10 @@ lib/core/config/app_config.dart
 ```
 
 Do aplikacji można wkładać tylko publiczny `publishable/anon key`. Nie wkładaj `service_role key`.
+
+## V3 mobile changes
+
+- Fixed the player list source so league player counts no longer depend on incomplete `season_players` rows.
+- Added a mobile Transfers screen backed by `player_transfers`.
+- Added a first Captain Panel view available from Account for captain/admin roles.
+- Updated GitHub Actions to set up Android SDK before calling `sdkmanager`.

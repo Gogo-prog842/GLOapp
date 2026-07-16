@@ -6,6 +6,7 @@ import 'league_repository.dart';
 import 'match_repository.dart';
 import 'player_repository.dart';
 import 'team_repository.dart';
+import 'transfer_repository.dart';
 
 class AppServices {
   AppServices(SupabaseClient client)
@@ -13,13 +14,15 @@ class AppServices {
         teamRepository = TeamRepository(client),
         matchRepository = MatchRepository(client),
         playerRepository = PlayerRepository(client),
-        authRepository = AuthRepository(client);
+        authRepository = AuthRepository(client),
+        transferRepository = TransferRepository(client);
 
   final LeagueRepository leagueRepository;
   final TeamRepository teamRepository;
   final MatchRepository matchRepository;
   final PlayerRepository playerRepository;
   final AuthRepository authRepository;
+  final TransferRepository transferRepository;
 }
 
 class RepositoryScope extends InheritedWidget {

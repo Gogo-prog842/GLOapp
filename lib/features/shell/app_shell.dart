@@ -7,6 +7,7 @@ import '../../features/home/home_screen.dart';
 import '../../features/matches/matches_screen.dart';
 import '../../features/players/players_screen.dart';
 import '../../features/standings/standings_screen.dart';
+import '../../features/transfers/transfers_screen.dart';
 import '../../state/app_scope.dart';
 
 class AppShell extends StatefulWidget {
@@ -24,6 +25,7 @@ class _AppShellState extends State<AppShell> {
     MatchesScreen(),
     StandingsScreen(),
     PlayersScreen(),
+    TransfersScreen(),
     AccountScreen(),
   ];
 
@@ -74,6 +76,7 @@ class _AppShellState extends State<AppShell> {
           NavigationDestination(icon: Icon(Icons.sports_soccer_outlined), selectedIcon: Icon(Icons.sports_soccer), label: 'Mecze'),
           NavigationDestination(icon: Icon(Icons.leaderboard_outlined), selectedIcon: Icon(Icons.leaderboard), label: 'Tabela'),
           NavigationDestination(icon: Icon(Icons.groups_outlined), selectedIcon: Icon(Icons.groups), label: 'Gracze'),
+          NavigationDestination(icon: Icon(Icons.swap_horiz_outlined), selectedIcon: Icon(Icons.swap_horiz), label: 'Transfery'),
           NavigationDestination(icon: Icon(Icons.person_outline), selectedIcon: Icon(Icons.person), label: 'Konto'),
         ],
       ),

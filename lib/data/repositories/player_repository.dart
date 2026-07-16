@@ -8,57 +8,21 @@ class PlayerRepository {
 
   final SupabaseClient _client;
 
+  /// Pobiera zawodników tak, żeby aplikacja nie obcinała listy przez niepełne
+  /// wpisy w season_players. Strona GLO opiera się głównie o drużyny/zawodników,
+  /// więc tutaj bierzemy zawodników z drużyn danej ligi + awaryjnie po league_id.
   Future<List<Player>> fetchPlayersWithStats({
     required int leagueId,
     required List<Team> teams,
     int? seasonId,
   }) async {
-    final teamIds = teams.map((team) => team.id).toList(growable: false);
+    final teamIds = teams.map((team) => team.id).toSet().toList(growable: false);
     if (teamIds.isEmpty) return const [];
 
-    var playerIds = <int>[];
-    if (seasonId != null) {
-      try {
-        final memberships = await _client
-            .from('season_players')
-            .select('player_id')
-            .eq('season_id', seasonId)
-            .eq('league_id', leagueId);
-        playerIds = _asRows(memberships)
-            .map((row) => _asInt(row['player_id']))
-            .whereType<int>()
-            .toSet()
-            .toList(growable: false);
-      } on PostgrestException catch (error) {
-        if (!_isMissingSchema(error)) rethrow;
-      }
-    }
-
-    final dynamic playerResponse;
-    if (playerIds.isNotEmpty) {
-      playerResponse = await _client
-          .from('players')
-          .select(
-            'id,name,team_id,league_id,avatar_url,position,jersey_number,is_hidden,'
-            'team:teams!players_team_id_fkey(id,name,logo_url)',
-          )
-          .inFilter('id', playerIds)
-          .order('name');
-    } else {
-      playerResponse = await _client
-          .from('players')
-          .select(
-            'id,name,team_id,league_id,avatar_url,position,jersey_number,is_hidden,'
-            'team:teams!players_team_id_fkey(id,name,logo_url)',
-          )
-          .inFilter('team_id', teamIds)
-          .order('name');
-    }
-
-    final basePlayers = _asRows(playerResponse)
-        .where((row) => row['is_hidden'] != true)
-        .map(Player.fromMap)
-        .toList(growable: false);
+    final basePlayers = await _fetchVisiblePlayersForLeague(
+      leagueId: leagueId,
+      teamIds: teamIds,
+    );
     if (basePlayers.isEmpty) return const [];
 
     final dynamic matchResponse;
@@ -106,8 +70,8 @@ class PlayerRepository {
     final goals = <int, int>{};
     final assists = <int, int>{};
     for (final row in _asRows(results[0])) {
-      if ((row['type'] as String?) != 'assist_only' &&
-          (row['type'] as String?) != 'own_goal') {
+      final type = (row['type'] as String?)?.toLowerCase();
+      if (type != 'assist_only' && type != 'own_goal') {
         final playerId = _asInt(row['player_id']);
         if (playerId != null) goals[playerId] = (goals[playerId] ?? 0) + 1;
       }
@@ -170,13 +134,77 @@ class PlayerRepository {
     final response = await _client
         .from('players')
         .select(
-          'id,name,team_id,league_id,avatar_url,position,jersey_number,'
+          'id,name,team_id,league_id,avatar_url,position,jersey_number,is_hidden,'
           'team:teams!players_team_id_fkey(id,name,logo_url)',
         )
         .inFilter('team_id', teamIds)
         .order('name');
-    final players = _asRows(response).map(Player.fromMap);
+    final players = _asRows(response)
+        .where((row) => row['is_hidden'] != true)
+        .map(Player.fromMap);
     return {for (final player in players) player.id: player};
+  }
+
+  Future<List<Player>> fetchPlayersForTeam(int teamId) async {
+    final response = await _client
+        .from('players')
+        .select(
+          'id,name,team_id,league_id,avatar_url,position,jersey_number,is_hidden,'
+          'team:teams!players_team_id_fkey(id,name,logo_url)',
+        )
+        .eq('team_id', teamId)
+        .order('name');
+    return _asRows(response)
+        .where((row) => row['is_hidden'] != true)
+        .map(Player.fromMap)
+        .toList(growable: false);
+  }
+
+  Future<List<Player>> _fetchVisiblePlayersForLeague({
+    required int leagueId,
+    required List<int> teamIds,
+  }) async {
+    final byId = <int, Player>{};
+
+    try {
+      final byTeams = await _client
+          .from('players')
+          .select(
+            'id,name,team_id,league_id,avatar_url,position,jersey_number,is_hidden,'
+            'team:teams!players_team_id_fkey(id,name,logo_url)',
+          )
+          .inFilter('team_id', teamIds)
+          .order('name');
+      for (final row in _asRows(byTeams)) {
+        if (row['is_hidden'] == true) continue;
+        final player = Player.fromMap(row);
+        if (player.id != 0) byId[player.id] = player;
+      }
+    } on PostgrestException catch (error) {
+      if (!_isMissingSchema(error)) rethrow;
+    }
+
+    try {
+      final byLeague = await _client
+          .from('players')
+          .select(
+            'id,name,team_id,league_id,avatar_url,position,jersey_number,is_hidden,'
+            'team:teams!players_team_id_fkey(id,name,logo_url)',
+          )
+          .eq('league_id', leagueId)
+          .order('name');
+      for (final row in _asRows(byLeague)) {
+        if (row['is_hidden'] == true) continue;
+        final player = Player.fromMap(row);
+        if (player.id != 0) byId[player.id] = player;
+      }
+    } on PostgrestException catch (error) {
+      if (!_isMissingSchema(error)) rethrow;
+    }
+
+    final players = byId.values.toList(growable: false);
+    players.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+    return players;
   }
 
   static bool _isLeagueMatch(Map<String, dynamic> row) {

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../features/captain/captain_panel_screen.dart';
 import '../../data/models/user_role.dart';
 import '../../data/repositories/app_services.dart';
 import '../../state/app_scope.dart';
@@ -115,6 +116,27 @@ class _AccountScreenState extends State<AccountScreen> {
             ),
           ),
         ),
+
+        if (role.type == UserRoleType.captain || role.type == UserRoleType.admin) ...[
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => Scaffold(
+                      appBar: AppBar(title: const Text('Panel kapitana')),
+                      body: const CaptainPanelScreen(),
+                    ),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.shield_outlined),
+              label: const Text('Otwórz panel kapitana'),
+            ),
+          ),
+        ],
         const SizedBox(height: 14),
         SizedBox(
           width: double.infinity,
